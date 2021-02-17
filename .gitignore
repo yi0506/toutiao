@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# 自定义忽略文件
+.idea/
+.vscode/
+*.pid
+
 # C extensions
 *.so
 
