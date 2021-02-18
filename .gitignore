@@ -7,6 +7,8 @@ __pycache__/
 .idea/
 .vscode/
 *.pid
+.DS_Store
+
 
 # C extensions
 *.so
