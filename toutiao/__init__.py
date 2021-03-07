@@ -3,7 +3,9 @@ from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
 import grpc
 from elasticsearch5 import Elasticsearch
-# import socketio
+import socketio
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.executors.pool import ThreadPoolExecutor
 
 
 def create_flask_app(config, enable_config_file=False):
@@ -58,7 +60,8 @@ def create_app(config, enable_config_file=False):
     app.redis_cluster = StrictRedisCluster(startup_nodes=app.config['REDIS_CLUSTER'])
 
     # rpc
-    # app.rpc_reco = grpc.insecure_channel(app.config['RPC'].RECOMMEND)
+    app.rpc_reco_channel = grpc.insecure_channel(app.config['RPC'].RECOMMEND)
+    app.rpc_reco = app.rpc_reco_channel
 
     # Elasticsearch
     app.es = Elasticsearch(
@@ -72,12 +75,28 @@ def create_app(config, enable_config_file=False):
     )
 
     # socket.io
-    # app.sio = socketio.KombuManager(app.config['RABBITMQ'], write_only=True)
+    # 通过sio mgr对象 可以发布要进行即使消息推送的任务，由socketio服务器从rabbitmq中取出任务，推送消息
+    app.sio_mgr = socketio.KombuManager(app.config['RABBITMQ'], write_only=True)
 
     # MySQL数据库连接初始化
     from models import db
 
     db.init_app(app)
+
+    # 创建APScheduler定时任务调度器对象
+    executors = {
+        'default': ThreadPoolExecutor(10)
+    }
+
+    app.scheduler = BackgroundScheduler(executors=executors)
+
+    # 添加"静态的"定时任务
+    from .schedule.statistic import fix_statistics
+    # app.scheduler.add_job(fix_statistics, 'date', args=[app])
+    app.scheduler.add_job(fix_statistics, 'cron', hour=3, args=[app])
+
+    # 启动定时任务调度器
+    app.scheduler.start()
 
     # 废弃 添加异常处理 对于flask-restful无效
     # from utils.error_handlers import handle_redis_error, handler_mysql_error

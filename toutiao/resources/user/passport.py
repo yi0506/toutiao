@@ -43,11 +43,6 @@ class AuthorizationResource(Resource):
     """
     认证
     """
-    method_decorators = {
-        'post': [set_db_to_write],
-        'put': [set_db_to_read]
-    }
-
     def _generate_tokens(self, user_id, refresh=True):
         """
         生成token 和refresh_token
